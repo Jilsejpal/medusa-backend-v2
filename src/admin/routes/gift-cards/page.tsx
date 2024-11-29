@@ -23,20 +23,61 @@ import DynamicForm from "../../components/form/DynamicForm";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
-const BrandsPage = () => {
+const formSchema = {
+  title: {
+    label: "Name",
+    fieldType: "input",
+    props: {
+      placeholder: "The Best Gift Card",
+    },
+    validation: {},
+  },
+  description: {
+    label: "Description",
+    fieldType: "textarea",
+    props: {
+      placeholder: "The best gift card of all time",
+    },
+    validation: {},
+  },
+  thumbnail: {
+    label: "Thumbnail",
+    fieldType: "file-upload",
+    props: {
+      placeholder: "1200 x 1600 (3:4) recommended, up to 10MB each",
+      filetypes: ["image/gif", "image/jpeg", "image/png", "image/webp"],
+      preview: false,
+      multiple: true,
+    },
+    validation: {},
+  },
+  // price: {
+  //   label: "Price",
+  //   fieldType: "currency-input",
+  //   props: {
+  //     placeholder: "Enter price",
+  //     preview: false,
+  //     multiple: true,
+  //     symbol: "MURs",
+  //     code: "MUR",
+  //   },
+  //   validation: {},
+  // },
+  denominations: {
+    fieldType: "add-denomination",
+    props: {
+      placeholder: "add",
+      preview: false,
+      multiple: true,
+    },
+    validation: {},
+  },
+};
+
+const GiftCardPage = () => {
   const [products, setProducts] = useState<Record<string, string>[]>([]);
   const formMethods = useForm();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    fetch(`/admin/products?is_giftcard=true`, {
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then(({ products: giftCards }) => {
-        setProducts(giftCards);
-      });
-  }, []);
 
   const setProductStatus = async (product: Record<string, string>) => {
     const raw = {
@@ -84,60 +125,19 @@ const BrandsPage = () => {
     }
   };
 
-  const formSchema = {
-    title: {
-      label: "Name",
-      fieldType: "input",
-      props: {
-        placeholder: "The Best Gift Card",
-      },
-      validation: {},
-    },
-    description: {
-      label: "Description",
-      fieldType: "textarea",
-      props: {
-        placeholder: "The best gift card of all time",
-      },
-      validation: {},
-    },
-    thumbnail: {
-      label: "Thumbnail",
-      fieldType: "file-upload",
-      props: {
-        placeholder: "1200 x 1600 (3:4) recommended, up to 10MB each",
-        filetypes: ["image/gif", "image/jpeg", "image/png", "image/webp"],
-        preview: false,
-        multiple: true,
-      },
-      validation: {},
-    },
-    // price: {
-    //   label: "Price",
-    //   fieldType: "currency-input",
-    //   props: {
-    //     placeholder: "Enter price",
-    //     preview: false,
-    //     multiple: true,
-    //     symbol: "MURs",
-    //     code: "MUR",
-    //   },
-    //   validation: {},
-    // },
-    denominations: {
-      fieldType: "add-denomination",
-      props: {
-        placeholder: "add",
-        preview: false,
-        multiple: true,
-      },
-      validation: {},
-    },
-  };
-
   const onSubmit = (data: any) => {
     console.log("data", data);
   };
+
+  useEffect(() => {
+    fetch(`/admin/products?is_giftcard=true`, {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then(({ products: giftCards }) => {
+        setProducts(giftCards);
+      });
+  }, []);
 
   return (
     <div className="p-0 flex flex-col gap-4">
@@ -271,7 +271,7 @@ const BrandsPage = () => {
   );
 };
 
-export default BrandsPage;
+export default GiftCardPage;
 
 // TODO export configuration
 

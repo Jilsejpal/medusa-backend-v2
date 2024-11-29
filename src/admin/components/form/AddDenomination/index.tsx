@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, CurrencyInput, Label } from "@medusajs/ui";
+import { IconButton, CurrencyInput, Label, Button } from "@medusajs/ui";
 import { Plus, Trash } from "@medusajs/icons";
 
 type Props = {};
@@ -20,14 +20,11 @@ const AddDenomination = (props: Props) => {
       {inputs.map((input) => (
         <div key={input.id} className="flex flex-col gap-2">
           <Label className="font-medium font-sans">Amount</Label>
-          <div className="flex items-center mb-4 gap-10">
+          <div className="flex items-center mb-4 gap-4">
             <CurrencyInput symbol="MURs" code="MUR" />
-            <Button
-              variant="transparent"
-              onClick={() => handleRemoveInput(input.id)}
-            >
-              <Trash />
-            </Button>
+            <IconButton onClick={() => handleRemoveInput(input.id)}>
+              <Trash className="text-rose-600" />
+            </IconButton>
           </div>
         </div>
       ))}
