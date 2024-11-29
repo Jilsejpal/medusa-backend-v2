@@ -1,4 +1,4 @@
-import { Input, Textarea, Checkbox } from "@medusajs/ui";
+import { Input, Textarea, Checkbox, CurrencyInput } from "@medusajs/ui";
 import FileUploadField from "./FileUploadField";
 
 type InputElementType = React.ComponentType<any>;
@@ -13,6 +13,8 @@ const getInputElement = (type: string): InputElementType => {
       return Checkbox;
     case "file-upload":
       return FileUploadField;
+    case "currency-input":
+      return CurrencyInput;
     default:
       return Input;
   }

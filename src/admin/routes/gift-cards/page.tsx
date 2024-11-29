@@ -1,4 +1,16 @@
-import { Container, Heading, Button, DropdownMenu, Badge } from "@medusajs/ui";
+import {
+  Container,
+  Heading,
+  Button,
+  DropdownMenu,
+  Badge,
+  FocusModal,
+  Text,
+  Label,
+  Input,
+  Textarea,
+  CurrencyInput,
+} from "@medusajs/ui";
 import { useEffect, useState } from "react";
 import { defineRouteConfig } from "@medusajs/admin-sdk";
 import {
@@ -9,6 +21,7 @@ import {
   PencilSquare,
   Trash,
   EyeSlash,
+  EllipseGreySolid,
 } from "@medusajs/icons";
 import DynamicForm from "../../components/form/DynamicForm";
 import { useForm } from "react-hook-form";
@@ -28,7 +41,24 @@ const BrandsPage = () => {
   }, []);
 
   const formSchema = {
+    name: {
+      label: "Name",
+      fieldType: "input",
+      props: {
+        placeholder: "The Best Gift Card",
+      },
+      validation: {},
+    },
+    description: {
+      label: "Description",
+      fieldType: "textarea",
+      props: {
+        placeholder: "The best gift card of all time",
+      },
+      validation: {},
+    },
     thumbnail: {
+      label: "Thumbnail",
       fieldType: "file-upload",
       props: {
         placeholder: "1200 x 1600 (3:4) recommended, up to 10MB each",
@@ -38,17 +68,16 @@ const BrandsPage = () => {
       },
       validation: {},
     },
-    product_aspect_ratio: {
-      label: "Product aspect ratio",
-      fieldType: "select",
+    price: {
+      label: "Price",
+      fieldType: "currency-input",
       props: {
-        placeholder: "Select aspect ratio",
+        placeholder: "Enter price",
+        preview: false,
+        multiple: true,
+        symbol: "MURs",
+        code: "MUR",
       },
-      validation: {},
-    },
-    product_bg_color: {
-      label: "Product bg color",
-      fieldType: "color-picker",
       validation: {},
     },
   };
@@ -72,7 +101,29 @@ const BrandsPage = () => {
           </Heading>
           <p className="text-sm">No Gift Card has been added yet.</p>
         </div>
-        <Button variant="secondary">Create Gift Card</Button>
+        <FocusModal>
+          <FocusModal.Trigger asChild>
+            <Button variant="secondary">Create Gift Card</Button>
+          </FocusModal.Trigger>
+          <FocusModal.Content>
+            <FocusModal.Header />
+            <FocusModal.Body className="flex flex-col items-center py-16">
+              <div className="flex w-full max-w-lg flex-col gap-y-8">
+                <div className="flex flex-col gap-y-1">
+                  <Heading level="h2" className="font-bold">
+                    Create Gift Card
+                  </Heading>
+                  <Text className="text-ui-fg-subtle">Gift Card Details</Text>
+                </div>
+                <DynamicForm
+                  form={formMethods}
+                  onSubmit={onSubmit}
+                  schema={formSchema}
+                />
+              </div>
+            </FocusModal.Body>
+          </FocusModal.Content>
+        </FocusModal>
       </Container>
       {products.map((product) => {
         console.log("====================================");
@@ -81,11 +132,6 @@ const BrandsPage = () => {
 
         return (
           <>
-            <DynamicForm
-              form={formMethods}
-              onSubmit={onSubmit}
-              schema={formSchema}
-            />
             <Container className="p-8 grid grid-cols-[8%_1fr_8%] gap-4">
               <div className="shadow-elevation-card-rest hover:shadow-elevation-card-hover transition-fg group relative aspect-square size-full cursor-pointer overflow-hidden rounded-[8px]">
                 <img
@@ -165,7 +211,7 @@ const BrandsPage = () => {
                   {product.status === "published" ? (
                     <EllipseGreenSolid />
                   ) : (
-                    <EllipseRedSolid />
+                    <EllipseGreySolid />
                   )}
                   <p className="capitalize">{product.status}</p>
                 </div>
