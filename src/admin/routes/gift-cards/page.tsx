@@ -10,9 +10,12 @@ import {
   Trash,
   EyeSlash,
 } from "@medusajs/icons";
+import DynamicForm from "../../components/form/DynamicForm";
+import { useForm } from "react-hook-form";
 
 const BrandsPage = () => {
   const [products, setProducts] = useState<Record<string, string>[]>([]);
+  const formMethods = useForm();
 
   useEffect(() => {
     fetch(`/admin/products?is_giftcard=true`, {
@@ -23,6 +26,36 @@ const BrandsPage = () => {
         setProducts(giftCards);
       });
   }, []);
+
+  const formSchema = {
+    thumbnail: {
+      fieldType: "file-upload",
+      props: {
+        placeholder: "1200 x 1600 (3:4) recommended, up to 10MB each",
+        filetypes: ["image/gif", "image/jpeg", "image/png", "image/webp"],
+        preview: false,
+        multiple: true,
+      },
+      validation: {},
+    },
+    product_aspect_ratio: {
+      label: "Product aspect ratio",
+      fieldType: "select",
+      props: {
+        placeholder: "Select aspect ratio",
+      },
+      validation: {},
+    },
+    product_bg_color: {
+      label: "Product bg color",
+      fieldType: "color-picker",
+      validation: {},
+    },
+  };
+
+  const onSubmit = (data: any) => {
+    console.log("data", data);
+  };
 
   return (
     <div className="p-0 flex flex-col gap-4">
@@ -47,91 +80,98 @@ const BrandsPage = () => {
         console.log("====================================");
 
         return (
-          <Container className="p-8 grid grid-cols-[8%_1fr_8%] gap-4">
-            <div className="shadow-elevation-card-rest hover:shadow-elevation-card-hover transition-fg group relative aspect-square size-full cursor-pointer overflow-hidden rounded-[8px]">
-              <img
-                src={product.thumbnail}
-                alt={product.title}
-                className="size-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col justify-between">
-              <div>
-                <Heading level="h1" className="font-bold">
-                  {product.title}
-                </Heading>
-                <p className="line-clamp-1">{product.description}</p>
+          <>
+            <DynamicForm
+              form={formMethods}
+              onSubmit={onSubmit}
+              schema={formSchema}
+            />
+            <Container className="p-8 grid grid-cols-[8%_1fr_8%] gap-4">
+              <div className="shadow-elevation-card-rest hover:shadow-elevation-card-hover transition-fg group relative aspect-square size-full cursor-pointer overflow-hidden rounded-[8px]">
+                <img
+                  src={product.thumbnail}
+                  alt={product.title}
+                  className="size-full object-cover"
+                />
               </div>
-              <div className="flex flex-row gap-4">
-                {product?.variants?.length > 0 &&
-                  product?.variants?.map((variant) => {
-                    console.log("====================================");
-                    console.log("variant", variant);
-                    console.log("====================================");
-                    return (
-                      <Badge>
-                        {variant?.prices[0]?.amount}{" "}
-                        {variant?.prices[0]?.currency_code}
-                      </Badge>
-                    );
-                  })}
+              <div className="flex flex-col justify-between">
+                <div>
+                  <Heading level="h1" className="font-bold">
+                    {product.title}
+                  </Heading>
+                  <p className="line-clamp-1">{product.description}</p>
+                </div>
+                <div className="flex flex-row gap-4">
+                  {product?.variants?.length > 0 &&
+                    product?.variants?.map((variant) => {
+                      console.log("====================================");
+                      console.log("variant", variant);
+                      console.log("====================================");
+                      return (
+                        <Badge>
+                          {variant?.prices[0]?.amount}{" "}
+                          {variant?.prices[0]?.currency_code}
+                        </Badge>
+                      );
+                    })}
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col justify-between items-end">
-              <DropdownMenu>
-                <DropdownMenu.Trigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    className="w-6 h-6 p-0"
-                  >
-                    <EllipsisHorizontal />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  <DropdownMenu.Item
-                    // onClick={() => {
-                    //   setOpenedVariant(variant);
-                    //   setOpenedDialogType("thumbnail");
-                    // }}
-                    className="gap-x-2"
-                  >
-                    <PencilSquare className="text-ui-fg-subtle" />
-                    Edit
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    // onClick={() => {
-                    //   setOpenedVariant(variant);
-                    //   setOpenedDialogType("media");
-                    // }}
-                    className="gap-x-2"
-                  >
-                    <EyeSlash className="text-ui-fg-subtle" />
-                    {product.status === "published" ? "Unpublish" : "Publish"}
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    // onClick={() => {
-                    //   setOpenedVariant(variant);
-                    //   setOpenedDialogType("media");
-                    // }}
-                    className="gap-x-2"
-                  >
-                    <Trash className="text-ui-fg-subtle" />
-                    Delete
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu>
-              <div className="flex items-center gap-2">
-                {product.status === "published" ? (
-                  <EllipseGreenSolid />
-                ) : (
-                  <EllipseRedSolid />
-                )}
-                <p className="capitalize">{product.status}</p>
+              <div className="flex flex-col justify-between items-end">
+                <DropdownMenu>
+                  <DropdownMenu.Trigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      className="w-6 h-6 p-0"
+                    >
+                      <EllipsisHorizontal />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.Item
+                      // onClick={() => {
+                      //   setOpenedVariant(variant);
+                      //   setOpenedDialogType("thumbnail");
+                      // }}
+                      className="gap-x-2"
+                    >
+                      <PencilSquare className="text-ui-fg-subtle" />
+                      Edit
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      // onClick={() => {
+                      //   setOpenedVariant(variant);
+                      //   setOpenedDialogType("media");
+                      // }}
+                      className="gap-x-2"
+                    >
+                      <EyeSlash className="text-ui-fg-subtle" />
+                      {product.status === "published" ? "Unpublish" : "Publish"}
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      // onClick={() => {
+                      //   setOpenedVariant(variant);
+                      //   setOpenedDialogType("media");
+                      // }}
+                      className="gap-x-2"
+                    >
+                      <Trash className="text-ui-fg-subtle" />
+                      Delete
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu>
+                <div className="flex items-center gap-2">
+                  {product.status === "published" ? (
+                    <EllipseGreenSolid />
+                  ) : (
+                    <EllipseRedSolid />
+                  )}
+                  <p className="capitalize">{product.status}</p>
+                </div>
               </div>
-            </div>
-          </Container>
+            </Container>
+          </>
         );
       })}
     </div>
