@@ -1,5 +1,6 @@
 import { Input, Textarea, Checkbox, CurrencyInput } from "@medusajs/ui";
 import FileUploadField from "./FileUploadField";
+import AddDenomination from "./AddDenomination";
 
 type InputElementType = React.ComponentType<any>;
 
@@ -15,6 +16,8 @@ const getInputElement = (type: string): InputElementType => {
       return FileUploadField;
     case "currency-input":
       return CurrencyInput;
+    case "add-denomination":
+      return AddDenomination;
     default:
       return Input;
   }
