@@ -19,7 +19,9 @@ const ErrorMessage = ({
     rules,
   });
 
-  return <>{error && <p className="text-rose-600">{error.message}</p>}</>;
+  console.log("rules", rules);
+
+  return <>{error && <p className="text-rose-600">{rules.message}</p>}</>;
 };
 
 export default memo(ErrorMessage);

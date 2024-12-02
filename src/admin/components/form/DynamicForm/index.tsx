@@ -25,6 +25,8 @@ const DynamicForm = ({ form, onSubmit, onReset, schema }: Props) => {
       className="flex w-full flex-col gap-y-3"
     >
       {Object.entries(schema).map(([key, fields]) => {
+        console.log("fields", fields);
+
         return (
           <Controller
             key={key}
