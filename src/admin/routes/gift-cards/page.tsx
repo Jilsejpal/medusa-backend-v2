@@ -64,7 +64,10 @@ const formSchema = {
     props: {
       placeholder: "The Best Gift Card",
     },
-    validation: {},
+    validation: {
+      required: true,
+      message: "Name is required",
+    },
   },
   description: {
     label: "Description",
@@ -92,7 +95,10 @@ const formSchema = {
       preview: false,
       multiple: true,
     },
-    validation: {},
+    validation: {
+      required: true,
+      message: "Atleast one denominations is required",
+    },
   },
 };
 
@@ -156,15 +162,20 @@ const GiftCardPage = () => {
 
   const onSubmit = async (data: FormValues) => {
     const formdata = new FormData();
-    data?.thumbnail.forEach((item) => {
-      return formdata.append("files", item, item?.name);
-    });
-    const response = await axios.post("/admin/uploads", formdata, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      withCredentials: true,
-    });
+    let thumbnailUrl: string | null = null;
+    if (data.thumbnail && data.thumbnail.length > 0) {
+      data.thumbnail.forEach((item) => {
+        formdata.append("files", item, item.name);
+      });
+
+      const response = await axios.post("/admin/uploads", formdata, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        withCredentials: true,
+      });
+      thumbnailUrl = response.data.files[0].url;
+    }
     const variants = data.denominations.map(
       (denomination: any, index: number) => ({
         title: (index + 1).toString(),
@@ -193,7 +204,7 @@ const GiftCardPage = () => {
       title: data.title,
       is_giftcard: true,
       status: "published",
-      thumbnail: response.data.files[0].url,
+      thumbnail: thumbnailUrl,
       description: data.description,
       options,
       variants,
@@ -208,14 +219,6 @@ const GiftCardPage = () => {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Failed to create giftcard :", errorData);
-        toast.error("Error", {
-          description: `${errorData}`,
-          duration: 5000,
-        });
-      }
       const newProduct = await res.json();
       setProducts((prevProducts) => [...prevProducts, newProduct.product]);
       setIsModalOpen(false);
