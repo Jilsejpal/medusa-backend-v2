@@ -16,7 +16,7 @@ const AddDenomination = (props: Props) => {
   >([]);
 
   const handleAddInput = () => {
-    const defaultCurrency = region.length > 0 ? region[0].currency_code : "USD"; // Default to the first currency or fallback to "USD"
+    const defaultCurrency = region.length > 0 ? region[0].currency_code : "USD";
     setInputs([
       ...inputs,
       { id: Date.now(), amount: 0, currency: defaultCurrency },
@@ -40,8 +40,11 @@ const AddDenomination = (props: Props) => {
       i === index ? { ...input, amount } : input
     );
     setInputs(updatedInputs);
+    // Only include inputs with amount greater than 0 in the onChange callback
     props.onChange(
-      updatedInputs.map(({ amount, currency }) => ({ amount, currency }))
+      updatedInputs
+        .filter((input) => input.amount > 0)
+        .map((input) => ({ amount: input.amount, currency: input.currency }))
     );
   };
 
@@ -67,7 +70,6 @@ const AddDenomination = (props: Props) => {
   }, []);
 
   useEffect(() => {
-    // Set a default input when regions are fetched
     if (region?.length > 0 && inputs?.length === 0) {
       handleAddInput();
     }
@@ -85,10 +87,7 @@ const AddDenomination = (props: Props) => {
                 onValueChange={(value) => handleCurrencyChange(index, value)}
               >
                 <Select.Trigger>
-                  <Select.Value
-                    placeholder="Select a currency"
-                    value={input?.currency}
-                  />
+                  <Select.Value>{input.currency.toUpperCase()}</Select.Value>
                 </Select.Trigger>
                 <Select.Content>
                   {region?.map((item) => (
@@ -110,6 +109,8 @@ const AddDenomination = (props: Props) => {
                 onChange={(event) =>
                   handleAmountChange(index, event.target.value)
                 }
+                value={input.amount || ""}
+                min="0.01"
               />
             </div>
             <IconButton onClick={() => handleRemoveInput(input.id)}>
