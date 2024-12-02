@@ -13,7 +13,7 @@ type SchemaField = {
 
 type Props = {
   form: UseFormReturn<FieldValues, any, undefined>;
-  onSubmit: (data: FieldValues) => void;
+  onSubmit: (data: any) => void;
   onReset?: () => void;
   schema: Record<string, SchemaField>;
 };
@@ -25,8 +25,6 @@ const DynamicForm = ({ form, onSubmit, onReset, schema }: Props) => {
       className="flex w-full flex-col gap-y-3"
     >
       {Object.entries(schema).map(([key, fields]) => {
-        console.log(fields.validation, "validation");
-
         return (
           <Controller
             key={key}
@@ -34,9 +32,6 @@ const DynamicForm = ({ form, onSubmit, onReset, schema }: Props) => {
             name={key}
             rules={fields.validation}
             render={({ field }) => {
-              console.log("====================================");
-              console.log(fields.validation);
-              console.log("====================================");
               return (
                 <div>
                   <Label htmlFor={key}>

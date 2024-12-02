@@ -36,7 +36,7 @@ const FileUploadField: React.FC<FileUploadFieldProps> = ({
   const [fileUploadError, setFileUploadError] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  console.log({ value, selectedImage });
+  // console.log({ value, selectedImage });
 
   useEffect(() => {
     if (value && typeof value !== "string" && value.length > 0) {

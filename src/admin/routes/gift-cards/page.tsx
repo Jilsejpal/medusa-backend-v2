@@ -6,6 +6,8 @@ import {
   Badge,
   FocusModal,
   Text,
+  Toaster,
+  toast,
 } from "@medusajs/ui";
 import { useEffect, useState } from "react";
 import { defineRouteConfig } from "@medusajs/admin-sdk";
@@ -22,6 +24,38 @@ import {
 import DynamicForm from "../../components/form/DynamicForm";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+type Product = {
+  description: string;
+  id: string;
+  images: string[];
+  is_giftcard: boolean;
+  origin_country: string | null;
+  status: "published" | "draft";
+  subtitle: string | null;
+  thumbnail: string;
+  title: string;
+  variants: Variant[];
+};
+
+interface Variant {
+  title: string;
+  prices: Price[];
+  options: Record<string, string>;
+}
+
+interface Price {
+  amount: number;
+  currency_code: string;
+}
+
+type FormValues = {
+  denominations: Array<{ amount: number }>;
+  description: string;
+  thumbnail: File[];
+  title: string;
+};
 
 const formSchema = {
   title: {
@@ -51,18 +85,6 @@ const formSchema = {
     },
     validation: {},
   },
-  // price: {
-  //   label: "Price",
-  //   fieldType: "currency-input",
-  //   props: {
-  //     placeholder: "Enter price",
-  //     preview: false,
-  //     multiple: true,
-  //     symbol: "MURs",
-  //     code: "MUR",
-  //   },
-  //   validation: {},
-  // },
   denominations: {
     fieldType: "add-denomination",
     props: {
@@ -75,11 +97,18 @@ const formSchema = {
 };
 
 const GiftCardPage = () => {
-  const [products, setProducts] = useState<Record<string, string>[]>([]);
-  const formMethods = useForm();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const formMethods = useForm<FormValues>({
+    defaultValues: {
+      title: "",
+      description: "",
+      thumbnail: [],
+    },
+  });
   const navigate = useNavigate();
 
-  const setProductStatus = async (product: Record<string, string>) => {
+  const setProductStatus = async (product: Product) => {
     const raw = {
       status: product.status === "published" ? "draft" : "published",
     };
@@ -125,8 +154,83 @@ const GiftCardPage = () => {
     }
   };
 
-  const onSubmit = (data: any) => {
-    console.log("data", data);
+  const onSubmit = async (data: FormValues) => {
+    const formdata = new FormData();
+    data?.thumbnail.forEach((item) => {
+      return formdata.append("files", item, item?.name);
+    });
+    const response = await axios.post("/admin/uploads", formdata, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      withCredentials: true,
+    });
+    const variants = data.denominations.map(
+      (denomination: any, index: number) => ({
+        title: (index + 1).toString(),
+        prices: [
+          {
+            amount: denomination.amount,
+            currency_code: "MUR",
+          },
+        ],
+        options: {
+          Denominations: denomination.amount.toString(),
+        },
+      })
+    );
+
+    const options = [
+      {
+        title: "Denominations",
+        values: data.denominations.map((denomination: { amount: number }) =>
+          denomination.amount.toString()
+        ),
+      },
+    ];
+
+    const payload = {
+      title: data.title,
+      is_giftcard: true,
+      status: "published",
+      thumbnail: response.data.files[0].url,
+      description: data.description,
+      options,
+      variants,
+    };
+    try {
+      const res = await fetch("/admin/products", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Failed to create giftcard :", errorData);
+        toast.error("Error", {
+          description: `${errorData}`,
+          duration: 5000,
+        });
+      }
+      const newProduct = await res.json();
+      setProducts((prevProducts) => [...prevProducts, newProduct.product]);
+      setIsModalOpen(false);
+      toast.success("Success", {
+        description: "gift card added sucessfully",
+        duration: 5000,
+      });
+      formMethods.reset();
+    } catch (error) {
+      console.error("Error creating giftcard:", error);
+      toast.error("Error", {
+        description: "Error creating giftcard.",
+        duration: 5000,
+      });
+    }
   };
 
   useEffect(() => {
@@ -141,6 +245,7 @@ const GiftCardPage = () => {
 
   return (
     <div className="p-0 flex flex-col gap-4">
+      <Toaster />
       <Container className="flex flex-col gap-2 p-8">
         <Heading level="h1" className="font-bold">
           Gift Cards
@@ -154,13 +259,13 @@ const GiftCardPage = () => {
           </Heading>
           <p className="text-sm">No Gift Card has been added yet.</p>
         </div>
-        <FocusModal>
+        <FocusModal open={isModalOpen} onOpenChange={setIsModalOpen}>
           <FocusModal.Trigger asChild>
             <Button variant="secondary">Create Gift Card</Button>
           </FocusModal.Trigger>
           <FocusModal.Content>
             <FocusModal.Header />
-            <FocusModal.Body className="flex flex-col items-center py-16 overflow-y-scroll">
+            <FocusModal.Body className="flex flex-col items-center py-16 overflow-y-scroll px-4">
               <div className="flex w-full max-w-lg flex-col gap-y-8">
                 <div className="flex flex-col gap-y-1">
                   <Heading level="h2" className="font-bold">
@@ -169,7 +274,7 @@ const GiftCardPage = () => {
                   <Text className="text-ui-fg-subtle">Gift Card Details</Text>
                 </div>
                 <DynamicForm
-                  form={formMethods}
+                  form={formMethods as any}
                   onSubmit={onSubmit}
                   schema={formSchema}
                 />
