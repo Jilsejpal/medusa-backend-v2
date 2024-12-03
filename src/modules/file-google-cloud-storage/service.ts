@@ -17,8 +17,10 @@ import {
 import { Storage, Bucket, GetSignedUrlConfig } from "@google-cloud/storage";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
+import os from "os";
 import stream, { Readable, PassThrough } from "stream";
 import path from "path";
+import sharp from "sharp";
 import {
   UploadStreamDescriptorWithPathType,
   UploadedJsonType,
@@ -109,29 +111,48 @@ class FileGoogleCloudProviderService extends AbstractFileProviderService {
     return cdnURL;
   }
 
+  /**
+   * This method is used to upload file(public bucket) to cloud storage.
+   * @param fileData
+   * @returns FileServiceUploadResult
+   */
   async upload(
     fileData: ProviderUploadFileDTO
   ): Promise<ProviderFileResultDTO> {
-    // TODO upload file to third-party provider
-    // or using custom logic
-
-    console.log({ fileData });
-
     try {
-      //key for use identifier when client get this
       const key = uuidv4();
-      // Extracting the file name without the extension
-      const fileNameWithoutExtension = path.parse(fileData.filename);
+      const fileNameWithoutExtension = path.parse(fileData.filename).name;
       const destination = `${key}/${fileNameWithoutExtension}/${fileData.filename}`;
+      const tempFilePath = path.join(os.tmpdir(), fileData.filename);
+      const fileBuffer = Buffer.from(fileData.content, "binary");
+
+      try {
+        await sharp(fileBuffer).metadata();
+      } catch (validationError) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_ARGUMENT,
+          "The provided file content is not a valid image."
+        );
+      }
+
+      fs.writeFileSync(tempFilePath, fileBuffer);
+
       const result = await this.privateStorage_
         .bucket(this.publicBucketName_)
-        .upload(fileData.content, {
+        .upload(tempFilePath, {
           destination,
+          metadata: {
+            contentType: fileData.mimeType,
+          },
         });
+
       //get content of file
       const [file] = result;
+      console.log(file, "result file");
+      fs.unlinkSync(tempFilePath);
       const publicUrl = await file.publicUrl();
       const cdnURL = this.transformGoogleCloudURLtoCDN(publicUrl);
+
       return {
         url: cdnURL,
         key: destination,
@@ -144,32 +165,231 @@ class FileGoogleCloudProviderService extends AbstractFileProviderService {
     }
   }
 
-  async delete(file: ProviderDeleteFileDTO): Promise<void> {
-    // TODO logic to remove the file from storage
-    // Use the `file.fileKey` to delete the file
-    // for example:
-    console.log({ file });
+  async delete(fileData: ProviderDeleteFileDTO): Promise<void> {
+    console.log({ fileData }, "file data", fileData.isPrivate);
 
-    throw new MedusaError(
-      MedusaError.Types.UNEXPECTED_STATE,
-      "delete method not implemented"
-    );
+    return;
 
-    // this.client.delete(file.fileKey);
+    try {
+      //search file in bucket
+      const isPrivate =
+        fileData?.isPrivate === undefined ? true : fileData.isPrivate;
+      const file = this.privateStorage_
+        .bucket(isPrivate ? this.privateBucketName_ : this.publicBucketName_)
+        .file(fileData.fileKey);
+      const [isExist] = await file.exists();
+      if (isExist) {
+        //delete
+        await file.delete();
+        return;
+      } else {
+        //not found file
+        throw new MedusaError(MedusaError.Types.NOT_FOUND, "Not found file.");
+      }
+    } catch (error) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        error?.message || "Delete file error."
+      );
+    }
   }
 
-  async getPresignedDownloadUrl(fileData: ProviderGetFileDTO): Promise<string> {
-    // TODO logic to get the presigned URL
-    // Use the `file.fileKey` to delete the file
-    // for example:
-    // return this.client.getPresignedUrl(fileData.fileKey);
+  async getPresignedDownloadUrl(
+    fileData: GetUploadedFileType
+  ): Promise<string> {
+    try {
+      const EXPIRATION_TIME = 15 * 60 * 1000; // 15 minutes
+      const file = this.privateStorage_
+        .bucket(this.privateBucketName_)
+        .file(fileData.fileKey);
 
-    console.log({ fileData });
+      const [isExist] = await file.exists();
+      if (!isExist) {
+        //Not found file
+        throw new MedusaError(MedusaError.Types.NOT_FOUND, "Not found file.");
+      }
+      //config for generate url
+      const options: GetSignedUrlConfig = {
+        version: "v4",
+        action: "read",
+        expires: Date.now() + EXPIRATION_TIME,
+      };
+      const [url] = await file.getSignedUrl(options);
+      return url;
+    } catch (error) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        error?.message || "Download stream file error."
+      );
+    }
+  }
 
-    throw new MedusaError(
-      MedusaError.Types.UNEXPECTED_STATE,
-      "getPresignedDownloadUrl method not implemented"
-    );
+  async getUploadStreamDescriptor(
+    fileData: UploadStreamDescriptorType
+  ): Promise<FileServiceGetUploadStreamResult> {
+    try {
+      //key for use identifier when client get this
+      const key = uuidv4();
+      //init file into the bucket *fileData.name include subbucket
+      const parsedFile = `${fileData.name}${
+        fileData.ext ? `.${fileData.ext}` : ""
+      }`;
+      // Extracting the file name without the extension
+      const fileNameWithoutExtension = parsedFile.replace(/\.[^/.]+$/, "");
+      const destination = `${key}/${fileNameWithoutExtension}/${parsedFile}`;
+      const pass = new stream.PassThrough();
+      const isPrivate =
+        fileData?.isPrivate === undefined ? true : fileData.isPrivate;
+      let url = "";
+      const file = this.privateStorage_
+        .bucket(isPrivate ? this.privateBucketName_ : this.publicBucketName_)
+        .file(destination);
+
+      //Upload file to bucket
+      const pipe = fs
+        .createReadStream(destination)
+        .pipe(file.createWriteStream());
+
+      //Get url of file
+      if (isPrivate) {
+        url = file.cloudStorageURI.href;
+      } else {
+        url = await file.publicUrl();
+        url = this.transformGoogleCloudURLtoCDN(url);
+      }
+
+      const promise = new Promise((res, rej) => {
+        pipe.on("finish", res);
+        pipe.on("error", rej);
+      });
+      return {
+        writeStream: pass,
+        promise,
+        url,
+        fileKey: destination,
+      };
+    } catch (error) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        error?.message || "Upload file stream error."
+      );
+    }
+  }
+
+  async getDownloadStream(
+    fileData: GetUploadedFileType
+  ): Promise<NodeJS.ReadableStream> {
+    try {
+      const isPrivate =
+        fileData?.isPrivate === undefined ? true : fileData.isPrivate;
+      const file = this.privateStorage_
+        .bucket(isPrivate ? this.privateBucketName_ : this.publicBucketName_)
+        .file(fileData.fileKey);
+
+      const [isExist] = await file.exists();
+      if (!isExist) {
+        //Not found file
+        throw new MedusaError(MedusaError.Types.NOT_FOUND, "Not found file.");
+      }
+      return file.createReadStream();
+    } catch (error) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        error?.message || "Download stream file error."
+      );
+    }
+  }
+
+  async uploadStreamJson(
+    fileData: UploadedJsonType
+  ): Promise<FileServiceUploadResult> {
+    //key for use identifier when client get this
+    const key = uuidv4();
+    const jsonString = JSON.stringify(fileData.data);
+    const buffer = Buffer.from(jsonString);
+    const stream = Readable.from(buffer);
+    //force extension to .json
+    const extension = ".json";
+    //force file name to be the same as the original name
+    const fileName = fileData.name.replace(/\.[^/.]+$/, "");
+    const destination = `${key}/${fileName}/${fileName}${extension}`;
+    const isPrivate =
+      fileData?.isPrivate === undefined ? true : fileData.isPrivate;
+    const file = this.privateStorage_
+      .bucket(isPrivate ? this.privateBucketName_ : this.publicBucketName_)
+      .file(destination);
+
+    //make file streaming
+    const pipe = stream.pipe(file.createWriteStream());
+    const pass = new PassThrough();
+    stream.pipe(pass);
+    const promise = new Promise((res, rej) => {
+      pipe.on("finish", res);
+      pipe.on("error", rej);
+    });
+    await promise;
+    //Get url of file
+    let url: string;
+    if (isPrivate) {
+      url = file.cloudStorageURI.href;
+    } else {
+      url = await file.publicUrl();
+      url = this.transformGoogleCloudURLtoCDN(url);
+    }
+    return {
+      url,
+      key: destination,
+    };
+  }
+
+  async uploadStream(
+    fileDetail: UploadStreamDescriptorWithPathType,
+    arrayBuffer: WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>
+  ): Promise<FileServiceUploadResult> {
+    //key for use identifier when client get this
+    const key = uuidv4();
+    const buffer = Buffer.from(arrayBuffer);
+    const stream = Readable.from(buffer);
+    let fileName = fileDetail.name.replace(/\.[^/.]+$/, "");
+    const fileNameWithoutExtension = fileName;
+    fileName = fileDetail.ext ? `${fileName}.${fileDetail.ext}` : fileName;
+    //check file name don't have extension
+    if (!fileDetail.ext && fileName.indexOf(".") === -1) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "File name must have extension."
+      );
+    }
+    // Extracting the file name without the extension
+    const destination = `${key}/${fileNameWithoutExtension}/${fileName}`;
+    //init file into the bucket *fileData.name include sub-bucket
+    const isPrivate =
+      fileDetail?.isPrivate === undefined ? true : fileDetail.isPrivate;
+    const file = this.privateStorage_
+      .bucket(isPrivate ? this.privateBucketName_ : this.publicBucketName_)
+      .file(destination);
+
+    //make file streaming
+    const pipe = stream.pipe(file.createWriteStream());
+    const pass = new PassThrough();
+    stream.pipe(pass);
+    const promise = new Promise((res, rej) => {
+      pipe.on("finish", res);
+      pipe.on("error", rej);
+    });
+    await promise;
+    //Get url of file
+    let url: string;
+    if (isPrivate) {
+      url = file.cloudStorageURI.href;
+    } else {
+      url = await file.publicUrl();
+      url = this.transformGoogleCloudURLtoCDN(url);
+    }
+    return {
+      url,
+      key: destination,
+    };
   }
 }
 
