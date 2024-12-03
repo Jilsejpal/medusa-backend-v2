@@ -166,10 +166,6 @@ class FileGoogleCloudProviderService extends AbstractFileProviderService {
   }
 
   async delete(fileData: ProviderDeleteFileDTO): Promise<void> {
-    console.log({ fileData }, "file data", fileData.isPrivate);
-
-    return;
-
     try {
       //search file in bucket
       const isPrivate =
